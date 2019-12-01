@@ -11,6 +11,9 @@ FILESDIR=../../../apps/file
 inet = tlogind telnet httpd
 INETDIR=../../../apps/inet
 
+demos = forking forked sigsend sigrecv semlock semwait
+DEMODIR=../../../doc/demo
+
 XA=xa
 
 all: osa.d64
@@ -24,6 +27,7 @@ boot: boot.a65
 clean:
 	rm -f c64rom boot osa.d64 osa.x64
 	rm -f ${sysapps}
+	rm -f ${demos}
 	rm -f vice.trace reltest
 
 topclean:
@@ -38,8 +42,8 @@ tar ../boot.tgz: boot c64rom loader index.html slip howto.boot
 # d64 emulator disk image + run
 #
 
-osa.d64: ${files} ${sysapps} ${lsh} ${inet} c64rom boot loader index.html
-	./mkdisk loader ${addprefix ${FILESDIR}/, ${files}} ${sysapps} ${addprefix ${LSHDIR}/, ${lsh}} ${addprefix ${INETDIR}/, ${inet}} c64rom boot index.html
+osa.d64: ${files} ${sysapps} ${lsh} ${inet} ${demos} c64rom boot loader index.html
+	./mkdisk loader ${addprefix ${FILESDIR}/, ${files}} ${sysapps} ${addprefix ${LSHDIR}/, ${lsh}} ${addprefix ${INETDIR}/, ${inet}} ${addprefix ${DEMODIR}/, ${demos}} c64rom boot index.html
 	rm -f ${sysapps}
 
 emurun: osa.d64
@@ -66,4 +70,6 @@ ${files}:
 ${inet}:
 	(cd ${INETDIR}; make $@;)
 
-	
+${demos}:
+	(cd ${DEMODIR}; make $@;)
+

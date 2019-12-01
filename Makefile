@@ -4,11 +4,13 @@ version="2.0.9"
 all:
 	(cd apps; ${MAKE};)
 	(cd sysapps; ${MAKE};)
+	(cd doc/demo; ${MAKE};)
 
 clean:
 	(cd arch; ${MAKE} clean;)
 	(cd apps; ${MAKE} clean;)
 	(cd sysapps; ${MAKE} clean;)
+	(cd doc/demo; ${MAKE} clean;)
 	(cd kernel; ${MAKE} clean;)
 
 tars:

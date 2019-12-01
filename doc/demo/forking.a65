@@ -1,0 +1,74 @@
+/* 
+  forking.a65 (demo program that forks "forked") 
+  This program forks the "forked" program and prints status messages
+  showing when it starts, keeps running, and stops.
+*/
+
+#include "kernel.i65"
+#include "kdefs.i65"
+#include "lib6502.i65"
+
+	.zero
+argp     .word 0
+
+  .text
+main .(
+  lda #<running
+  ldy #>running
+  jsr strout
+  lda #<forking
+  ldy #>forking
+  jsr strout
+
+  lda #<forkstrc
+  ldy #>forkstrc
+  jsr forkto
+  bcc showpid
+  pha
+  lda #<forkerr
+  ldy #>forkerr
+  jsr strout
+  pla
+  jsr hexout
+  lda #<forkerr2
+  ldy #>forkerr2
+  jsr strout
+  rts
+
+showpid .(
+  lda #9
+  sta tenths1
+  jsr delay1
+  jsr delay1
+  ldx #3
+saystill
+  txa
+  pha
+  lda #<still
+  ldy #>still
+  jsr strout
+  jsr delay1
+  jsr delay1
+  pla
+  tax
+  dex
+  bne saystill
+
+  lda #<ending
+  ldy #>ending
+  jsr strout
+  rts
+.)
+
+#include delay.a65
+#include "../../apps/common.a65"
+
+  .data
+running  .asc $0a,$0d,"program forking running...",$0a,$0d,0
+forking  .asc $0a,$0d,"forking forked...",$0a,$0d,0
+still    .asc $0a,$0d,"program forking still running...",$0a,$0d,0
+ending   .asc $0a,$0d,"program forking ending",$0a,$0d,0
+forkstrc .byt STDIN,STDOUT,STDERR,"forked",0,0
+forkerr  .byt $0a,$0d,"Error $"
+forkerr2 .asc " forking child",$0a,$0d,0
+.)

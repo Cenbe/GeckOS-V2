@@ -1,0 +1,48 @@
+/*
+  forked.a65 (demo program, forked by forking.a65)
+  This program flashes the border slowly, printing messages when it starts
+  and ends.
+*/
+
+#include "kdefs.i65"
+#include "kernel.i65"
+#include "lib6502.i65"
+
+	.zero
+argp     .word 0
+
+	.text
+main .(
+  ldx #SEM_SENDBUF ;release PCBUF semaphore from fork
+  jsr VSEM
+  lda #<forked
+  ldy #>forked
+  jsr strout
+  lda #5
+  sta tenths2
+  jsr delay2
+  jsr delay2
+
+  lda #16
+  sta flashcnt
+flash	
+  inc $d020  ;cycle border color 16 times
+  lda #7
+  sta tenths2
+  jsr delay2
+  dec flashcnt
+  bne flash
+
+  lda #<ending
+  ldy #>ending
+  jsr strout
+  rts
+
+#include delay.a65
+#include "../../apps/common.a65"
+
+  .data
+flashcnt .byt 0
+forked .asc $0a,$0d,"program forked flashing border",$0a,$0d,0
+ending .asc "program forked ending",$0a,$0d,0
+.)

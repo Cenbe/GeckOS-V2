@@ -1,0 +1,103 @@
+/* 
+  sigsend.a65 (demo program that forks sigrecv and sends a signal to it)
+  This program forks the "sigrecv" program, then waits for a keypress.
+  When a key is pressed, it sends SIG_USR1 to the child program.
+*/
+
+#include "kernel.i65"
+#include "kdefs.i65"
+#include "lib6502.i65"
+
+	.zero
+argp     .word 0
+
+  .text
+main .(
+  lda #<running
+  ldy #>running
+  jsr strout
+  lda #<forking
+  ldy #>forking
+  jsr strout
+
+  lda #<forkstrc
+  ldy #>forkstrc
+  jsr forkto
+  bcc showpid
+  pha
+  lda #<forkerr
+  ldy #>forkerr
+  jsr strout
+  pla
+  jsr hexout
+  lda #<forkerr2
+  ldy #>forkerr2
+  jsr strout
+  rts
+showpid
+  stx childpid
+  lda #<hitkey   ;get keyboard input to send signal
+  ldy #>hitkey
+  jsr strout
+	ldx #STDIN
+	sec
+	jsr fgetc
+  bcc dosend
+  pha
+  lda #<unknown
+  ldy #>unknown
+  jsr strout
+  pla
+  jsr hexout
+  jsr crlfout
+  rts
+
+dosend .(
+  lda #<sending
+  ldy #>sending
+  jsr strout
+  /*
+    send signal to forked program:
+    SENDSIG	
+    c=1: ac contains the signal mask to be sent to the task ID given in xr
+		c=0: set thread to sleep until it receives a signal
+  */
+  lda #SIG_USR1
+  ldx childpid
+  sec
+  jsr SENDSIG
+  bcc alldone
+  pha
+  lda #<sigerr
+  ldy #>sigerr
+  jsr strout
+  pla
+  jsr hexout
+  lda #<sigerr2
+  ldy #>sigerr2
+  jsr strout
+  rts
+alldone
+  lda #<ending
+  ldy #>ending
+  jsr strout
+  rts
+.)
+
+#include delay.a65
+#include "../../apps/common.a65"
+
+  .data
+running   .asc $0a,$0d,"program sigsend running...",$0a,$0d,0
+forking   .asc $0a,$0d,"forking sigrecv...",$0a,$0d,0
+forkstrc  .byt STDIN,STDOUT,STDERR,"sigrecv",0,0
+forkerr   .byt $0a,$0d,"Error $"
+forkerr2  .asc " forking child",$0a,$0d,0
+childpid  .byt 0
+hitkey    .asc $0a,$0d,"sigsend: hit a key to do the sending!",$0a,$0d,0
+unknown   .asc $0a,$0d,"sigsend: unknown error: $"
+sending   .asc $0a,$0d,"sigsend sending SIG_USR1...",$0a,$0d,0
+sigerr    .asc $0a,$0d,"Error $"
+sigerr2   .asc " sending SIG_USR1",$0a,$0d,0
+ending    .asc $0a,$0d,"program sigsend ending",$0a,$0d,0
+.)

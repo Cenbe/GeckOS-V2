@@ -1,0 +1,129 @@
+/* semlock.a65 (test program that locks a semaphore) */
+
+#include "kernel.i65"
+#include "kdefs.i65"
+#include "lib6502.i65"
+
+#define SEM_DEMO 6
+
+	.zero
+argp     .word 0
+
+  .text
+main .(
+  ldx #SEM_SENDBUF ;release PCBUF semaphore from fork
+  jsr VSEM
+  lda #<running
+  ldy #>running
+  jsr strout
+  lda #9
+  sta tenths1
+  jsr delay1
+  jsr delay1
+  lda #<locking
+  ldy #>locking
+  jsr strout
+  /*
+    PSEM	'PSEM' operation on a given semaphore. task waits till
+		      semaphore is freed. parameter: semaphore number in x
+		carry=0: block till semaphore is free
+		carry=1: do a test&set operation and return with 
+		E_OK if semaphore gotten, or E_SEMSET if semaphore is in use.
+  */
+  ldx #SEM_DEMO
+  sec
+  jsr PSEM
+  bcc locked
+  cmp #E_OK
+  beq locked
+  cmp #E_NOSEM  ;$EF
+  bne issemset
+  lda #<nosem
+  ldy #>nosem
+  jsr strout
+  rts
+issemset
+  cmp #E_SEMSET  ;$EE
+  bne lockerr
+  lda #<unavail
+  ldy #>unavail
+  jsr strout
+  rts
+lockerr
+  pha
+  lda #<unknown
+  ldy #>unknown
+  jsr strout
+  pla
+  jsr hexout
+  jsr crlfout
+  rts
+locked
+  lda #<forking
+  ldy #>forking
+  jsr strout
+  lda #<forkstrc
+  ldy #>forkstrc
+  jsr forkto      ;fork child process
+  bcc showpid
+  pha
+  lda #<forkerr
+  ldy #>forkerr
+  jsr strout
+  pla
+  jsr hexout
+  lda #<forkerr2
+  ldy #>forkerr2
+  jsr strout
+  rts
+showpid
+  stx childpid
+  lda #<hitkey  ;get keyboard input to release semaphore
+  ldy #>hitkey
+  jsr strout
+	ldx #STDIN
+	sec
+	jsr fgetc
+  bcc dofree
+  pha
+  lda #<unknown
+  ldy #>unknown
+  jsr strout
+  pla
+  jsr hexout
+  jsr crlfout
+  rts
+dofree
+  lda #<freeing
+  ldy #>freeing
+  jsr strout
+/* 
+  VSEM 'VSEM' operation on semaphore, allows other tasks
+       to grab the semaphore.
+		parameter: semaphore number in x
+*/
+  ldx #SEM_DEMO
+  jsr VSEM
+  lda #<ending
+  ldy #>ending
+  jsr strout
+  rts
+
+#include delay.a65
+#include "../../apps/common.a65"
+
+  .data
+running   .asc $0a,$0d,"program semlock running...",$0a,$0d,0
+locking   .asc $0a,$0d,"semlock locking SEM_DEMO...",$0a,$0d,0
+nosem     .asc $0a,$0d,"no such semaphore, aborting!",$0a,$0d,0
+unavail   .asc $0a,$0d,"semaphore SEM_DEMO in use, aborting!",$0a,$0d,0
+unknown   .asc $0a,$0d,"semlock: unknown error: $",0
+forking   .asc $0a,$0d,"forking semwait...",$0a,$0d,0
+forkstrc  .byt STDIN,STDOUT,STDERR,"semwait",0,0
+forkerr   .byt $0a,$0d,"Error $",0
+forkerr2  .asc " forking child",$0a,$0d,0
+childpid  .byt 0
+hitkey    .asc $0a,$0d,"semlock: hit a key to free semaphore!",$0a,$0d,0
+freeing   .asc $0a,$0d,"freeing semaphore SEM_DEMO...",$0a,$0d,0
+ending    .asc $0a,$0d,"program semlock ending",$0a,$0d,0
+.)

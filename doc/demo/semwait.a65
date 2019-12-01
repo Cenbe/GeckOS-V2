@@ -1,0 +1,80 @@
+/* 
+  semwait.a65 (test program that waits for a semaphore to be free) 
+  This program periodically tries to acquire a lock on the SEM_DEMO 
+  semaphore, printing messages until it is successful and ends.
+*/
+
+#include "kernel.i65"
+#include "kdefs.i65"
+
+#define SEM_DEMO 6
+
+	.zero
+argp     .word 0
+
+  .text
+main .(
+/* release PCBUF semaphore from fork */
+  ldx #SEM_SENDBUF
+  jsr VSEM
+  lda #<running
+  ldy #>running
+  jsr strout
+  lda #9
+  sta tenths2
+wait
+  lda #<waiting
+  ldy #>waiting
+  jsr strout
+  jsr delay2
+  /*
+    PSEM	'PSEM' operation on a given semaphore. task waits till
+		      semaphore is freed. parameter: semaphore number in x
+		carry=0: block till semaphore is free
+		carry=1: do a test&set operation and return with 
+		E_OK if semaphore gotten, or E_SEMSET if semaphore is in use.
+  */
+  ldx #SEM_DEMO
+  sec
+  jsr PSEM
+  bcc cksem
+  cmp #E_SEMSET
+  beq wait
+  bne unsemerr
+cksem
+  cmp #E_OK
+  beq itsfree
+unsemerr
+  pha
+  lda #<unknown
+  ldy #>unknown
+  jsr strout
+  pla
+  jsr hexout
+  jsr crlfout
+  jmp alldone
+itsfree
+  lda #<semfree
+  ldy #>semfree
+  jsr strout
+  ldx #SEM_DEMO ;we locked it, so release it!
+  jsr VSEM
+alldone
+  lda #<ending
+  ldy #>ending
+  jsr strout
+  rts
+
+#include delay.a65
+#include "../../apps/common.a65"
+
+  .data
+running  .asc $0a,$0d,"program semwait running...",$0a,$0d,0
+waiting  .asc $0a,$0d,"semwait waiting for semaphore...",$0a,$0d,0
+semerr   .asc $0a,$0d,"semwait: semaphore error $"
+semerrno .asc "00",$0a,$0d,0
+unknown  .asc $0a,$0d,"semwait: unknown error: $"
+unerrno  .asc "00",$0a,$0d,0
+semfree  .asc $0a,$0d,"semwait: acquired lock on SEM_DEMO",$0a,$0d,0
+ending   .asc $0a,$0d,"semwait: freeing/ending",$0a,$0d,0
+.)

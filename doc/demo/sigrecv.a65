@@ -1,0 +1,123 @@
+/* 
+  sigrecv.a65 (demo program that waits for a signal)
+  This program registers a handler for all GeckOS signals, then waits
+  for any signal while printing a status message periodically. When it
+  receives any signal, it prints the value of the signal on the console
+  and ends. It can be used on its own to test the kill program.
+*/
+
+#include "kernel.i65"
+#include "kdefs.i65"
+#include "lib6502.i65"
+
+#define  SIGCNT 7 
+
+	.zero
+argp     .word 0
+
+  .text
+main .(
+  ldx #SEM_SENDBUF ;release PCBUF semaphore from fork
+  jsr VSEM
+  lda #<running
+  ldy #>running
+  jsr strout
+  lda #<setting
+  ldy #>setting
+  jsr strout
+/*
+    SETSIG	sets the signal address and the signal mask
+		(carry=1): sets signal address in a/y
+		(carry=0): sets signal mask
+*/
+  lda #<sigresp
+  ldy #>sigresp
+  sec
+  jsr SETSIG    ;set signal handler address
+  lda #SIG_USR1|SIG_USR2|SIG_USR3|SIG_USR4|SIG_BRK|SIG_KILL|SIG_CHLD
+  clc
+  jsr SETSIG    ;set signal mask: respond to all signals
+  lda #5
+  sta tenths2
+wait
+  lda #<waiting
+  ldy #>waiting
+  jsr strout
+  jsr delay2
+  lda doneflag
+  beq wait
+
+  lda #<recvd   ;signal handler has run; show signal
+  ldy #>recvd
+  jsr strout
+  lda sig
+  jsr hexout
+  ldx #0
+  lda sig
+findsig
+  cmp sigs,x
+  beq foundsig
+  inx
+  cpx #SIGCNT
+  bne findsig
+  rts           ;oops, signal not found
+foundsig
+  ldy #0
+  cpx #0
+  beq showname
+findname
+  lda signames,y
+  beq ckname
+  iny
+  bne findname
+ckname
+  iny            ;past null
+  dex
+  beq showname
+  lda signames,y ;look for trailing null
+  bne findname
+  rts            ;signal not in list... shouldn't happen
+showname
+  tya
+  pha
+  jsr spout
+  lda #"("
+  jsr stdout
+  pla
+  clc
+  adc #<signames
+  pha
+  lda #>signames
+  adc #0
+  tay
+  pla
+  jsr strout
+  lda #")"
+  jsr stdout
+  rts
+.)
+
+/* signal handler */
+sigresp .(
+  sta sig
+  inc doneflag
+  pla
+  rti
+.)
+
+#include delay.a65
+#include "../../apps/common.a65"
+
+  .data
+sig      .byt 0
+running  .asc $0a,$0d,"program sigrecv running...",$0a,$0d,0
+setting  .asc $0a,$0d,"sigrecv setting mask...",$0a,$0d,0
+waiting  .asc $0a,$0d,"sigrecv waiting for a signal...",$0a,$0d,0
+recvd    .asc $0a,$0d,"sigrecv received signal $",0
+maskis   .byt 0,0,0
+lparen   .asc " (",0
+signames .asc "SIG_USR1",0,"SIG_USR2",0,"SIG_USR3",0,"SIG_USR4",0
+         .asc "SIG_BRK",0,"SIG_KILL",0,"SIG_CHLD",0,0
+sigs     .byt SIG_USR1,SIG_USR2,SIG_USR3,SIG_USR4,SIG_BRK,SIG_KILL,SIG_CHLD,0
+;               $01      $02      $04      $08      $10     $20      $40
+doneflag .byt 0

@@ -1,0 +1,57 @@
+/* 
+  delay.a65 (delay routines for demo programs)
+  These routines use the CIA TOD clocks to create delays.
+*/
+
+#include "kdefs.i65"
+#include "kernel.i65"
+#include "lib6502.i65"
+#include "chips/cia6526.i65"
+
+#define CIA1 $dc00
+#define CIA2 $dd00
+
+  .data
+
+tenths1 .byt 0
+tenths2 .byt 0
+
+  .text
+
+/* 
+   delay using CIA1 TOD clock 
+   pass: tenths of a second to delay in tenths1
+   return: nothing
+   destroyed: .A
+*/
+delay1 .(
+  lda #0
+  sta CIA1+CIA_TOD_10TH
+wait1
+  lda CIA1+CIA_TOD_10TH
+  cmp tenths1  ;BCD
+  bcs delayed1
+  jsr YIELD
+  jmp wait1
+delayed1
+  rts
+.)
+
+/* 
+   delay using CIA2 TOD clock 
+   pass: tenths of a second to delay in tenths2
+   return: nothing
+   destroyed: .A
+*/
+delay2 .(
+  lda #0
+  sta CIA2+CIA_TOD_10TH
+wait2
+  lda CIA2+CIA_TOD_10TH
+  cmp tenths2  ;BCD
+  bcs delayed2
+  jsr YIELD
+  jmp wait2
+delayed2
+  rts
+.)
