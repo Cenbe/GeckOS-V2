@@ -1,0 +1,153 @@
+/*********************************************************************
+  uiitest.a65 (1541 Ultimate II+ test program)
+ *********************************************************************/
+
+#include "lib6502.i65"
+#include "kernel.i65"
+
+#define UIIDEBUG
+
+	.zero
+
+msgptr  .word 0
+
+	.text
+
+main .(
+  lda #<banner
+  ldy #>banner
+  jsr strout
+  jsr hitakey
+
+  lda #<probing
+  ldy #>probing
+  jsr strout
+  jsr uiiProbe
+  bcc openuii
+  lda #<errmsg
+  ldy #>errmsg
+  jsr strout
+  rts
+
+openuii
+  lda #<opening
+  ldy #>opening
+  jsr strout
+  lda #<port  ;port followed by host
+  ldy #>port
+  ldx #hostend-port
+  jsr uiiOpen
+  bcs openerr
+  lda uiistat
+  cmp #"0"
+  bne openerr
+  lda uiidata
+  sta socket
+  lda #<sockis
+  ldy #>sockis
+  jsr strout
+  lda socket
+  jsr hexout
+  jsr crlfout
+  clv
+  bvc writeuii
+
+openerr
+  lda #<errmsg
+  ldy #>errmsg
+  jsr strout
+  lda #<closing
+  ldy #>closing
+  jsr strout
+  ldx socket
+  jsr uiiClose
+  rts
+
+writeuii
+  lda #<writing
+  ldy #>writing
+  jsr strout
+  lda #<socket  ;immediately followed by data to send
+  ldy #>socket
+  ldx #connend-socket
+  jsr uiiWrite
+  bcs openerr
+  lda uiistat
+  cmp #"0"
+  bne openerr
+
+readuii
+  lda #<reading
+  ldy #>reading
+  jsr strout
+  lda #$fe
+  ldy #0       ;254 bytes (FIXME should be controlled by API)
+  ldx socket
+  jsr uiiRead
+  bcs openerr
+  lda uiistat
+  cmp #"0"
+  bne openerr
+  lda uiistat+1  
+  cmp #"2"       ;02,NO DATA
+  bne uiidone
+  inc retry
+  lda retry
+  cmp #6         ;five tries
+  bcc readuii    ;try again
+
+uiidone 
+  lda #<closing
+  ldy #>closing
+  jsr strout
+  ldx socket
+  jsr uiiClose
+  lda #<alldone
+  ldy #>alldone
+  jsr strout
+  rts
+
+/*********************************************************************
+  hitakey: "hit any key" routine
+ *********************************************************************/
+hitakey
+  lda #<hitkey
+  ldy #>hitkey
+  jsr strout
+  ldx #STDIN
+  sec
+  jsr fgetc
+  rts
+
+/*********************************************************************/
+
+#include "libuii.a65"
+#include "../../../apps/common.a65"
+	
+	.data
+
+;port     .word 80
+port     .word 6470
+host     .asc "mafarka.lyonlabs.org"
+hostend
+socket   .byt 0  ;first byte of sent data is socket number
+;conndata .asc "HEAD / HTTP/1.0",$0d,$0d
+conndata .asc $0d
+connend
+retry    .byt 0
+
+banner	 .asc $0a,$0d,"1541 Ultimate II+ networking test",$0d,0
+hitkey   .asc $0a,$0d,"hit a key...",$0d,0
+probing  .asc $0a,$0d,"probing...",$0d,0
+opening  .asc $0a,$0d,"opening TCP socket....",$0d,0
+sockis   .asc $0a,$0d,"socket is $",0
+writing  .asc "writing data...",$0d,0
+reading  .asc "reading data...",$0d,0
+closing  .asc "closing socket...",$0d,0
+errmsg   .asc $0a,$0d,"Error, aborting!",$0d,0
+alldone  .asc $0a,$0d,"All done!",$0d,0
+
+  .bss
+  
+message  .dsb 40
+.)

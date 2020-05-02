@@ -2,40 +2,52 @@
 apps = lsh
 sysapps = mon slipd
 files = mkdir rmdir rm format chkdsk ls cat mv
-inet = tlogin telnet httpd
+inet = tlogind telnet httpd
+test = uiitest
 
 XA=xa
+XAINPUT=../../../include
 
-all: boot c64rom ${files} ${apps} ${sysapps} ${inet}
+all: boot c64rom ${files} ${apps} ${sysapps} ${inet} ${test}
+
+test: ${test}
 
 c64 c64rom:
 	(cd ..; ${MAKE};)
 
-boot: boot.a65
-	${XA} boot.a65 -o boot
+boot: ../boot/boot.a65
+	(cd ../boot; ${XA} boot.a65 -o boot; )
 
 clean:
-	rm -f c64rom boot slip test test2 ktest test osa.d64 tstenv 
-	rm -f ${files} ${sysapps} ${apps} ${inet}
-	rm -f vice.trace reltest
+	rm -f c64rom boot slip osa.d64
+	rm -f ${files} ${sysapps} ${apps} ${inet} ${test}
+	(for f in ${test}; do rm $$f*.lab; done)
+	rm -f vice.trace
 
 tar ../boot.tgz: boot c64rom loader charom index.html slip howto.boot
 	tar czvf ../boot.tgz boot c64rom loader charom index.html slip howto.boot
 
-ktest: ktest.a65
-	(XAINPUT=../../../; export XAINPUT; ${XA} -DSTDIOADDR=53248 -DKERNEL=61440 ktest.a65 -o ktest)
+uiitest: uiitest.a65
+	(XAINPUT=${XAINPUT}; export XAINPUT; \
+	${XA} -R uiitest.a65 -LOSA2KERNEL -LLIB6502 -l uiitest.lab -o uiitest && \
+	sort -k1 < uiitest.lab > uiitest-by-label.lab && \
+	sort -k2 < uiitest.lab > uiitest-by-address.lab)
+#  sed "s/, 0x/ = $$/" uiitest-by-label.lab | cut -d, -f1 > uiitest-acme.lab)
 
-ttest2: test2.a65
-	(XAINPUT=../../../; export XAINPUT; ${XA} -DSTDIOADDR=53248 -DKERNEL=61440 test2.a65 -o test2)
+#ktest: ktest.a65
+#	(XAINPUT=../../../; export XAINPUT; ${XA} -DSTDIOADDR=53248 -DKERNEL=61440 ktest.a65 -o ktest)
 
-test: test.a65
-	(XAINPUT=../../../include; export XAINPUT; ${XA} -R -DSTDIOADDR=53248 test.a65 -o test)
+#ttest2: test2.a65
+#	(XAINPUT=../../../; export XAINPUT; ${XA} -DSTDIOADDR=53248 -DKERNEL=61440 test2.a65 -o test2)
 
-tstenv: tstenv.a65
-	${XA} -R -I ../../../include -DSTDIOADDR=53248 tstenv.a65 -o tstenv
+#test: test.a65
+#	(XAINPUT=../../../include; export XAINPUT; ${XA} -R -DSTDIOADDR=53248 test.a65 -o test)
 
-reltest: reltest.a65
-	${XA} -R reltest.a65 -LOSA2KERNEL -LLIB6502 -o reltest
+#tstenv: tstenv.a65
+#	${XA} -R -I ../../../include -DSTDIOADDR=53248 tstenv.a65 -o tstenv
+
+#reltest: reltest.a65
+#	${XA} -R reltest.a65 -LOSA2KERNEL -LLIB6502 -o reltest
 
 ##############################################################################
 #

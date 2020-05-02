@@ -1,0 +1,74 @@
+/*********************************************************************
+  libuii.i65 (include file for 1541 Ultimate II+)
+ *********************************************************************/
+
+#define CONTROL_REG     $DF1C
+#define STATUS_REG      $DF1C
+#define CMD_DATA_REG    $DF1D
+#define ID_REG          $DF1D
+#define RESP_DATA_REG   $DF1E
+#define STATUS_DATA_REG $DF1F
+
+/* control register */
+#define CLR_ERR   $08
+#define UII_ABORT $04
+#define DATA_ACC  $02
+#define PUSH_CMD  $01
+
+/* status register */
+#define DATA_AV     $80
+#define STAT_AV     $40
+/* status bits (4 and 5) */
+#define STATUS_BITS $30
+#define IDLE        $00
+#define CMDBUSY     $10
+#define DATALAST    $20
+#define DATAMORE    $30
+/* end status bits */
+#define UII_ERROR   $08
+#define ABORT_P     $04
+#define DATA_ACC    $02
+#define PUSH_CMD    $01
+#define CMD_BUSY    $01
+
+#define TARGET_DOS1    $01
+#define TARGET_DOS2    $02
+#define TARGET_NETWORK $03
+#define TARGET_CONTROL $04
+
+#define DOS_CMD_IDENTIFY     $01
+#define DOS_CMD_OPEN_FILE    $02
+#define DOS_CMD_CLOSE_FILE   $03
+#define DOS_CMD_READ_DATA    $04
+#define DOS_CMD_WRITE_DATA   $05
+#define DOS_CMD_FILE_SEEK    $06
+#define DOS_CMD_FILE_INFO    $07
+#define DOS_CMD_CHANGE_DIR   $11
+#define DOS_CMD_GET_PATH     $12
+#define DOS_CMD_OPEN_DIR     $13
+#define DOS_CMD_READ_DIR     $14
+#define DOS_CMD_COPY_UI_PATH $15
+#define DOS_CMD_LOAD_REU     $21
+#define DOS_CMD_SAVE_REU     $22
+#define DOS_CMD_ECHO         $F0
+
+#define NET_IFCNT        $02
+#define NET_GETIP        $05
+#define NET_TCP_CONNECT  $07
+#define NET_TCP_CLOSE    $09
+#define NET_TCP_SOCKRD   $10
+#define NET_TCP_SOCKWR   $11
+#define NET_TCP_LISTEN   $12
+#define NET_TCP_UNLISTEN $13
+#define NET_GET_LISTATE	 $14
+#define NET_GET_LISOCKET $15
+
+#define NET_NOT_LISTENING $00
+#define NET_LISTENING     $01
+#define NET_CONNECTED     $02
+#define NET_BIND_ERROR    $03
+#define NET_PORT_IN_USE   $04
+
+#define CMDQ_SIZE    $380
+#define RESPQ_SIZE   $380
+#define STATUSQ_SIZE $100

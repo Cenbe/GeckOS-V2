@@ -1,0 +1,426 @@
+/**************************************************************************
+  libuii.a65
+
+   API entry points for geoGopher:
+   -------------------------------
+uiiProbe	;verify device present
+; Detect presence of Flyer network card. Note that if we just call
+; LISTEN and SECOND without data, "BAD COMMAND" will appear on
+; the LCD screen.
+;	pass:	nothing
+;	return:	carry clear on success, false otherwise
+;		Flyer's IP address at ipAddr
+
+uiiInfo
+(not implemented in geoGopher)
+
+uiiOpen	;connect to server
+; Open connection to gopher server.
+;	required:	host and port populated
+  (note: make sure port, then host as passed in uii+)
+;	pass:	nlOnOpen: whether to send a bare newline
+;	return:	carry set on error, clear otherwise
+
+uiiRead	;read from server
+; Read up to 254 bytes from Flyer network card and store at (a0).
+;	pass:	a0, address of buffer
+;	return:	carry set on error, clear otherwise
+;		on success, .Y holds number of bytes read
+;		on success, .X is non-zero if EOF reached
+;		on error: Commodore DOS status in .A
+
+uiiWrite	;write to server
+;	pass:	server connection must be open
+;		a0, address of data to send
+;	return:	carry set on error, clear otherwise
+
+	 uiiClose	;close connection/cleanup
+;pass:   nothing (uii needs socket no.)
+;return: nothing
+
+ **************************************************************************/
+
+#include "libuii.i65"
+
+.zero
+cmdptr    .word 0
+
+.data
+length    .byt 0
+command   .byt 0
+counter   .byt 0
+
+.text
+
+#iflused uiiProbe
+/**************************************************************************
+  uiiProbe (probe for presence of a 1541 Ultimate II+)
+  pass:      nothing
+  return:    carry clear if present, set otherwise
+ **************************************************************************/
+uiiProbe .(
+  lda #<identify
+  ldy #>identify
+  sta cmdptr
+  sty cmdptr+1
+  ldx #2
+  stx length
+  lda #0  ;no add'l data to send
+  sta command
+  jmp sendcmd
+.)
+#endif
+
+#iflused uiiInfo
+/**************************************************************************
+  uiiInfo (get info on 1541 Ultimate II+)
+  pass:      
+  return:    
+  destroyed: 
+ **************************************************************************/
+uiiInfo .(
+  rts
+).
+#endif
+
+#iflused uiiOpen
+/**************************************************************************
+  uiiOpen (connect to server)
+  pass:      .A/.Y, address of port (lo/hi), host
+             .X length of port/host
+  return:    carry clear on success, set otherwise
+             uiistat, status message (e.g. 00,OK)
+             uiidata, response (socket as word on success)
+  destroyed: 
+ **************************************************************************/
+uiiOpen .(
+  sta cmdptr
+  sty cmdptr+1
+  stx length
+  lda #NET_TCP_CONNECT  ;send add'l data
+  sta command
+  jmp sendcmd
+.)
+#endif
+
+#iflused uiiWrite
+/**************************************************************************
+  uiiWrite (write to socket)
+  pass:      .A/.Y, address of data to send (first byte is socket number)
+             .X, length of data
+  return:    
+  destroyed: 
+ **************************************************************************/
+uiiWrite .(
+  sta cmdptr
+  sty cmdptr+1
+  stx length
+  lda #NET_TCP_SOCKWR
+  sta command
+/*
+  lda #<writecmd
+  ldy #>writecmd
+  jsr strout
+  jsr hitakey
+*/
+  jmp sendcmd
+.)
+#endif
+
+#iflused uiiRead
+/**************************************************************************
+  uiiRead (read up to 254 bytes from socket)
+  pass:      .A/.Y, number of bytes to read
+             .X, socket number
+  return:    .Y, number of bytes read
+             .X, non-zero if EOF reached
+  destroyed: 
+ **************************************************************************/
+uiiRead .(
+  stx readcmd+2  ;socket no.
+  sta readcmd+3  ;no. bytes lo
+  sty readcmd+4  ;no. bytes hi
+  lda #<readcmd
+  sta cmdptr
+  lda #>readcmd
+  sta cmdptr+1
+  lda #5
+  sta length
+  lda #0
+  sta command    ;no extra bytes
+  jmp sendcmd
+.)
+#endif
+
+#iflused uiiClose
+/**************************************************************************
+  uiiClose (close connection)
+  pass:      .X, socket number
+  return:    
+  destroyed: 
+ **************************************************************************/
+uiiClose .(
+  stx closecmd+2  ;socket no.
+  lda #<closecmd
+  sta cmdptr
+  lda #>closecmd
+  sta cmdptr+1
+  lda #3
+  sta length
+  lda #0
+  sta command  ;no extra bytes
+  jmp sendcmd
+.)
+#endif
+
+#iflused sendcmd
+/**************************************************************************
+  sendcmd (send command)
+  pass:      cmdmptr, address of command (null-terminated)
+             length, length of data to send
+             command, command byte (whether to send extra bytes)
+  return:    carry set on error, clear otherwise
+  destroyed: counter
+ **************************************************************************/
+sendcmd .(
+  lda #0
+  sta counter
+dosend
+/*
+#ifdef UIIDEBUG
+  lda #<sending
+  ldy #>sending
+  jsr strout
+#endif
+*/
+  jsr waitbusy
+  lda command
+  beq dosend2
+  lda #TARGET_NETWORK
+  sta CMD_DATA_REG
+  lda command
+  sta CMD_DATA_REG
+dosend2
+  ldy #0
+sendloop 
+  lda (cmdptr),y
+  sta CMD_DATA_REG
+  iny
+  cpy length
+  bcc sendloop
+cmdsent
+  lda CONTROL_REG
+  ora #PUSH_CMD
+  sta CONTROL_REG
+#ifdef UIIDEBUG
+  jsr showstat  ;returns status register in .A
+#else
+  lda STATUS_REG
+#endif
+  and #UII_ERROR
+  beq cmdrslt
+#ifdef UIIDEBUG
+  lda #<clrerr
+  ldy #>clrerr
+  jsr strout
+#endif
+  lda CONTROL_REG
+  ora #UII_ERROR  ;clear any pending error
+  sta CONTROL_REG
+  inc counter
+  lda counter
+  cmp #5
+  bcc dosend
+  rts
+cmdrslt 
+#ifdef UIIDEBUG
+  jsr showstat  ;returns status register in .A
+#else
+  lda STATUS_REG
+#endif
+  jsr drain ;drain & display data and status queues
+  lda CONTROL_REG
+  ora #DATA_ACC    ;accept response
+  sta CONTROL_REG
+  clc
+bail
+  rts
+.)
+#endif
+
+#iflused waitbusy
+/**************************************************************************
+  waitbusy (wait for busy flags to clear)
+  pass:      nothing
+  return:    nothing
+  destroyed: 
+ **************************************************************************/
+waitbusy .(
+#ifdef UIIDEBUG
+  lda #<busymsg
+  ldy #>busymsg
+  jsr strout
+  jsr showstat  ;returns status register in .A
+#else
+  lda STATUS_REG
+#endif
+  and #STATUS_BITS  ;not busy, no more data available
+  bne waitbusy
+  rts
+.)
+#endif
+
+#iflused drain
+/**************************************************************************
+  drain (drain status and response queues)
+  pass: nothing; return: nothing
+ **************************************************************************/
+drain .(
+#ifdef UIIDEBUG
+  jsr crlfout
+#endif
+  ldx #0
+dr1
+  lda STATUS_REG
+  and #DATA_AV
+  beq dr2
+  lda RESP_DATA_REG
+#ifdef UIIDEBUG
+  jsr chrout
+#endif
+  sta uiidata,x
+  inx
+  bne dr1  ;don't allow more than 254 actual bytes read
+dr2
+#ifdef UIIDEBUG
+  jsr crlfout
+#endif
+  ldx #0
+dr3
+  lda STATUS_REG
+  and #STAT_AV
+  beq dr4
+  lda STATUS_DATA_REG
+#ifdef UIIDEBUG
+  jsr chrout
+#endif
+  sta uiistat,x
+  inx
+  jmp dr3
+dr4
+  txa
+  beq nostatus
+#ifdef UIIDEBUG
+  jsr crlfout
+#endif
+  lda #0
+  sta uiistat,x
+nostatus
+  rts
+.)
+#endif
+
+/**************************************************************************
+  showstat (get and display status)
+  pass: nothing; return: status register in .A
+ **************************************************************************/
+showstat .(
+  lda #$0a
+  sta message
+  lda #$0d
+  sta message+1
+  ldx #2
+  lda STATUS_REG
+  pha
+  and #DATA_AV
+  beq gs3
+  ldy #0
+gs1 
+  lda dataav,y
+  beq gs2
+  sta message,x
+  inx
+  iny
+  bne gs1
+gs2 
+  lda #"/"
+  sta message,x
+  inx
+gs3 
+  pla
+  pha
+  and #STAT_AV
+  beq gs6
+  ldy #0
+gs4 g
+  lda statav,y
+  beq gs5
+  sta message,x
+  inx
+  iny
+  bne gs4
+gs5 
+  lda #"/"
+  sta message,x
+  inx
+gs6 
+  pla
+  pha
+  and #STATUS_BITS
+  lsr
+  lsr
+  lsr
+  tay
+  lda statmsgs,y
+  sta msgptr
+  iny
+  lda statmsgs,y
+  sta msgptr+1
+  ldy #0
+gs7 
+  lda (msgptr),y
+  beq gs8
+  sta message,x
+  inx
+  iny
+  bne gs7
+gs8 
+  lda #$0d
+  sta message,x
+  inx
+  lda #0
+  sta message,x
+  lda #<message
+  ldy #>message
+  jsr strout
+  pla
+  rts
+.)
+
+/**************************************************************************/
+
+  .data
+
+#ifdef UIIDEBUG
+busymsg  .asc $0a,$0d,"waiting for busy flags to clear...",$0d,0
+sending  .asc $0a,$0d,"sending command...",$0d,0
+clrerr   .asc $0a,$0d,"clearing error/retrying...",$0d,0
+dataav   .asc "data_av",0
+statav   .asc "stat_av",0
+state00  .asc "idle",$0d,0
+state01  .asc "command busy",$0d,0
+state10  .asc "data last",$0d,0
+state11  .asc "data more",$0d,0
+statmsgs .word state00,state01,state10,state11
+#endif
+
+identify .byt TARGET_NETWORK,DOS_CMD_IDENTIFY
+readcmd  .byt TARGET_NETWORK,NET_TCP_SOCKRD,0,0,0
+closecmd .byt TARGET_NETWORK,NET_TCP_CLOSE,0
+
+writecmd .byt $0a,$0d,"sending write command...",$0d,0
+
+  .bss
+
+uiidata   .dsb 256  ;also used to construct commands
+uiistat   .dsb 256

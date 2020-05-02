@@ -16,6 +16,9 @@ FILTERDIR=../../../apps/filter
 inet = tlogind telnet httpd
 INETDIR=../../../apps/inet
 
+test = uiitest
+TESTDIR=../test
+
 XA=xa
 
 X64=x64sc
@@ -45,8 +48,8 @@ tar ../boot.tgz: boot c64rom loader index.html slip howto.boot
 # d64 emulator disk image + run
 #
 
-osa.d64: ${files} ${filter} ${sysapps} ${apps} ${inet} c64rom boot loader index.html test.bat
-	./mkdisk loader ${addprefix ${FILESDIR}/, ${files}}  ${addprefix ${FILTERDIR}/, ${filter}} ${sysapps} ${apps} ${addprefix ${INETDIR}/, ${inet}} ${MANPAGES} c64rom boot index.html test.bat
+osa.d64: ${files} ${filter} ${sysapps} ${apps} ${inet} ${test} c64rom boot loader index.html test.bat
+	./mkdisk loader ${addprefix ${FILESDIR}/, ${files}}  ${addprefix ${FILTERDIR}/, ${filter}} ${sysapps} ${apps} ${addprefix ${INETDIR}/, ${inet}} ${MANPAGES} ${addprefix ${TESTDIR}/, ${test}} c64rom boot index.html test.bat
 	rm -f ${sysapps} ${apps}
 
 emurun: osa.d64
@@ -77,4 +80,5 @@ ${filter}:
 ${inet}:
 	(cd ${INETDIR}; make $@;)
 
-	
+${test}:	
+	(cd ${TESTDIR}; make $@;)
